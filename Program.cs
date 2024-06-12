@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Xml.Linq;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.Extensions.Logging;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
@@ -45,7 +46,15 @@ class Program
         // Post1: '2020-03-05', '8'
         // Post3: '2020-02-14', '9'
 
-        
+        var mySecondQuery = (from posts in context.BlogPosts
+                             let lastComment = posts.Comments.OrderByDescending(c => c.CreatedDate).FirstOrDefault()
+                             let lastCommentDate = lastComment.CreatedDate.Date
+                             orderby lastCommentDate descending
+                             select new { PostName = posts.Title, LastCommentDate = lastCommentDate, LastCommentText = lastComment.Text });
+
+        foreach (var posts in mySecondQuery)
+            Console.WriteLine(posts.PostName + ": \'" +  posts.LastCommentDate.ToShortDateString()  + "\', " + posts.LastCommentText);
+
         Console.WriteLine("How many last comments each user left:");
         // 'last comment' is the latest Comment in each Post
         //ToDo: write a query and dump the data to console
