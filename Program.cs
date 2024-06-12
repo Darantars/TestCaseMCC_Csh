@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Xml.Linq;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
@@ -31,13 +33,11 @@ class Program
         // Petr: 2
         // Elena: 3
 
-        var myFirstQuery = (from comments in context.BlogComments
-                          group comments by comments.UserName into dump
-                          select new { UserName = dump.Key, Count = dump.Count()});
+            Console.WriteLine(
+             JsonSerializer.Serialize(BlogService.NumberOfCommentsPerUser(context)));
 
-        foreach (var comments in myFirstQuery)
-                Console.WriteLine(comments.UserName + ": " + comments.Count);
-        
+
+
 
         Console.WriteLine("Posts ordered by date of last comment. Result should include text of last comment:");
         //ToDo: write a query and dump the data to console
@@ -46,14 +46,8 @@ class Program
         // Post1: '2020-03-05', '8'
         // Post3: '2020-02-14', '9'
 
-        var mySecondQuery = (from posts in context.BlogPosts
-                             let lastComment = posts.Comments.OrderByDescending(c => c.CreatedDate).FirstOrDefault()
-                             let lastCommentDate = lastComment.CreatedDate.Date
-                             orderby lastCommentDate descending
-                             select new { PostName = posts.Title, LastCommentDate = lastCommentDate, LastCommentText = lastComment.Text });
-
-        foreach (var posts in mySecondQuery)
-            Console.WriteLine(posts.PostName + ": \'" +  posts.LastCommentDate.ToShortDateString()  + "\', " + posts.LastCommentText);
+        Console.WriteLine(
+            JsonSerializer.Serialize(BlogService.PostsOrderedByLastCommentDate(context)));
 
         Console.WriteLine("How many last comments each user left:");
         // 'last comment' is the latest Comment in each Post
@@ -62,16 +56,40 @@ class Program
         // Ivan: 2
         // Petr: 1
 
-            
-        // Console.WriteLine(
-        //     JsonSerializer.Serialize(BlogService.NumberOfCommentsPerUser(context)));
-        // Console.WriteLine(
-        //     JsonSerializer.Serialize(BlogService.PostsOrderedByLastCommentDate(context)));
-        // Console.WriteLine(
-        //     JsonSerializer.Serialize(BlogService.NumberOfLastCommentsLeftByUser(context)));
+        Console.WriteLine(
+            JsonSerializer.Serialize(BlogService.NumberOfLastCommentsLeftByUser(context)));
 
     }
 
+    public class BlogService
+    {
+        public static IQueryable NumberOfCommentsPerUser(MyDbContext context)
+        {
+            IQueryable myFirstQuery = (from comments in context.BlogComments //Можно было добавить <dynamic>, но задание не подорузумевает неккоректных данных другого из БД
+                                group comments by comments.UserName into dump
+                                select new { UserName = dump.Key, Count = dump.Count()});
+            return myFirstQuery;
+        }
+
+        public static IQueryable PostsOrderedByLastCommentDate(MyDbContext context)
+        {
+            IQueryable mySecondQuery = (from posts in context.BlogPosts
+                                 let lastComment = posts.Comments.OrderByDescending(c => c.CreatedDate).FirstOrDefault()
+                                 let lastCommentDate = lastComment.CreatedDate.Date
+                                 orderby lastCommentDate descending
+                                 select new { PostName = posts.Title, LastCommentDate = lastCommentDate, LastCommentText = lastComment.Text });
+            return mySecondQuery;
+        }
+
+        public static IQueryable NumberOfLastCommentsLeftByUser(MyDbContext context)
+        {
+            IQueryable myThirdQuery = (from posts in context.BlogPosts
+                                        let lastComment = posts.Comments.OrderByDescending(c => c.CreatedDate).FirstOrDefault()
+                                        let lastCommentDate = lastComment.CreatedDate.Date
+                                        orderby lastCommentDate descending
+                                        select new { PostName = posts.Title, LastCommentDate = lastCommentDate, LastCommentText = lastComment.Text });
+            return myThirdQuery;
+        }
     private static void InitializeData(MyDbContext context)
     {
         context.BlogPosts.Add(new BlogPost("Post1")
