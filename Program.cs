@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Xml.Linq;
 using Microsoft.Extensions.Logging;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 class Program
 {
@@ -28,6 +30,14 @@ class Program
         // Petr: 2
         // Elena: 3
 
+        var myFirstQuery = (from comments in context.BlogComments
+                          group comments by comments.UserName into dump
+                          select new { UserName = dump.Key, Count = dump.Count()});
+
+        foreach (var comments in myFirstQuery)
+                Console.WriteLine(comments.UserName + ": " + comments.Count);
+        
+
         Console.WriteLine("Posts ordered by date of last comment. Result should include text of last comment:");
         //ToDo: write a query and dump the data to console
         // Expected result (format could be different, e.g. object serialized to JSON is ok):
@@ -35,7 +45,7 @@ class Program
         // Post1: '2020-03-05', '8'
         // Post3: '2020-02-14', '9'
 
-
+        
         Console.WriteLine("How many last comments each user left:");
         // 'last comment' is the latest Comment in each Post
         //ToDo: write a query and dump the data to console
