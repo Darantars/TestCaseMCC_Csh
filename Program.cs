@@ -1,13 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Json;
-using System.Xml.Linq;
-using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.Extensions.Logging;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 class Program
 {
@@ -24,7 +19,8 @@ class Program
         Console.WriteLine("All posts:");
         var data = context.BlogPosts.Select(x => x.Title).ToList();
         Console.WriteLine(JsonSerializer.Serialize(data));
-
+            
+            
         Console.WriteLine("How many comments each user left:");
         //ToDo: write a query and dump the data to console
         // Expected result (format could be different, e.g. object serialized to JSON is ok):
@@ -32,8 +28,8 @@ class Program
         // Petr: 2
         // Elena: 3
 
-        Console.WriteLine(
-         JsonSerializer.Serialize(BlogService.NumberOfCommentsPerUser(context)));
+        Console.WriteLine(JsonSerializer.Serialize(BlogService.NumberOfCommentsPerUser(context)));
+
 
         Console.WriteLine("Posts ordered by date of last comment. Result should include text of last comment:");
         //ToDo: write a query and dump the data to console
@@ -42,8 +38,7 @@ class Program
         // Post1: '2020-03-05', '8'
         // Post3: '2020-02-14', '9'
 
-        Console.WriteLine(
-            JsonSerializer.Serialize(BlogService.PostsOrderedByLastCommentDate(context)));
+        Console.WriteLine(JsonSerializer.Serialize(BlogService.PostsOrderedByLastCommentDate(context)));
 
         Console.WriteLine("How many last comments each user left:");
         // 'last comment' is the latest Comment in each Post
@@ -52,63 +47,10 @@ class Program
         // Ivan: 2
         // Petr: 1
 
-        Console.WriteLine(
-            JsonSerializer.Serialize(BlogService.NumberOfLastCommentsLeftByUser(context)));
+        Console.WriteLine(JsonSerializer.Serialize(BlogService.NumberOfLastCommentsLeftByUser(context)));
 
     }
 
-    /// <summary>
-    /// Класс, предоставляющий методы для выполнения запросов к базе данных и получения данных о комментариях и постах блога.
-    /// </summary>
-    public class BlogService
-    {
-
-        //Для полного соответствия с "Expected result" можно было упоковать выдачу как примитивы или настроить сериализатор,
-        //но считаю это не совсем рациональным использованием JSON 
-
-        /// <summary>
-        /// Метод, возвращающий запрос, который группирует комментарии по имени пользователя и возвращает количество комментариев для каждого пользователя и его имя.
-        /// </summary>
-        /// <param name="context">Объект контекста базы данных.</param>
-        /// <returns>Запрос, который группирует комментарии по имени пользователя и возвращает количество комментариев для каждого пользователя и его имя.</returns>
-        public static IQueryable NumberOfCommentsPerUser(MyDbContext context)
-        {
-            IQueryable myFirstQuery = (from comments in context.BlogComments //Можно было добавить <dynamic>, но задание не подорузумевает неккоректных данных другого из БД
-                                       group comments by comments.UserName into dump
-                                       select new { UserName = dump.Key, UserCommentsCount = dump.Count() });
-            return myFirstQuery;
-        }
-
-        /// <summary>
-        /// Метод, возвращающий запрос, который сортирует посты по дате последнего комментария и возвращает информацию об их заголовке и тексте последнего комментария.
-        /// </summary>
-        /// <param name="context">Объект контекста базы данных.</param>
-        /// <returns>Запрос, который сортирует посты по дате последнего комментария и возвращает информацию об их заголовке и тексте последнего комментария.</returns>
-        public static IQueryable PostsOrderedByLastCommentDate(MyDbContext context)
-        {
-            IQueryable mySecondQuery = (from posts in context.BlogPosts
-                                        let lastComment = posts.Comments.OrderByDescending(c => c.CreatedDate).FirstOrDefault()
-                                        let lastCommentDate = lastComment.CreatedDate.Date
-                                        orderby lastCommentDate descending
-                                        select new { PostName = posts.Title, LastPostCommentDate = lastCommentDate.ToShortDateString(), LastPostCommentText = lastComment.Text });
-            return mySecondQuery;
-        }
-
-        /// <summary>
-        /// Метод, возвращающий запрос, который возвращает количество последних комментариев под постом для каждого пользователя.
-        /// </summary>
-        /// <param name="context">Объект контекста базы данных.</param>
-        /// <returns>Запрос, который возвращает количество последних комментариев под постом для каждого пользователя.</returns>
-        public static IQueryable NumberOfLastCommentsLeftByUser(MyDbContext context)
-        {
-            IQueryable myThirdQuery = (from posts in context.BlogPosts
-                                       let lastComment = posts.Comments.OrderByDescending(c => c.CreatedDate).FirstOrDefault()
-                                       group posts by lastComment.UserName into dump
-
-                                       select new { UserName = dump.Key, UserLastPostCommentsCount = dump.Count() });
-            return myThirdQuery;
-        }
-    }
     private static void InitializeData(MyDbContext context)
     {
         context.BlogPosts.Add(new BlogPost("Post1")
@@ -141,4 +83,55 @@ class Program
         context.SaveChanges();
     }
 
+    public class BlogService
+    {
+        /// <summary>
+        /// Метод, возвращающий запрос, который группирует комментарии по имени пользователя и возвращает количество комментариев для каждого пользователя и его имя.
+        /// </summary>
+        /// <param name="context">Контекст базы данных.</param>
+        /// <returns>Запрос, который группирует комментарии по имени пользователя и возвращает количество комментариев для каждого пользователя и его имя.</returns>
+        public static IQueryable<dynamic> NumberOfCommentsPerUser(MyDbContext context)
+        {
+            return context.BlogComments
+                .GroupBy(c => c.UserName)
+                .Select(g => new { UserName = g.Key, UserCommentsCount = g.Count() });
+        }
+
+        /// <summary>
+        /// Метод, возвращающий запрос, который сортирует посты по дате последнего комментария и возвращает информацию об их заголовке и тексте последнего комментария.
+        /// </summary>
+        /// <param name="context">Контекст базы данных.</param>
+        /// <returns>Запрос, который сортирует посты по дате последнего комментария и возвращает информацию об их заголовке и тексте последнего комментария.</returns>
+        public static IQueryable<dynamic> PostsOrderedByLastCommentDate(MyDbContext context)
+        {
+            return context.BlogPosts
+                .Select(p => new
+                {
+                    PostName = p.Title,
+                    LastComment = p.Comments.OrderByDescending(c => c.CreatedDate).FirstOrDefault()
+                })
+                .Where(p => p.LastComment != null)
+                .OrderByDescending(p => p.LastComment.CreatedDate)
+                .Select(p => new
+                {
+                    p.PostName,
+                    LastPostCommentDate = p.LastComment.CreatedDate.ToShortDateString(),
+                    LastPostCommentText = p.LastComment.Text
+                });
+        }
+
+        /// <summary>
+        /// Метод, возвращающий запрос, который возвращает количество последних комментариев под постом для каждого пользователя.
+        /// </summary>
+        /// <param name="context">Контекст базы данных.</param>
+        /// <returns>Запрос, который возвращает количество последних комментариев под постом для каждого пользователя.</returns>
+        public static IQueryable<dynamic> NumberOfLastCommentsLeftByUser(MyDbContext context)
+        {
+            return context.BlogPosts
+                .SelectMany(p => p.Comments.OrderByDescending(c => c.CreatedDate).Take(1),
+                    (p, c) => new { c.UserName })
+                .GroupBy(c => c.UserName)
+                .Select(g => new { UserName = g.Key, UserLastPostCommentsCount = g.Count() });
+        }
+    }
 }
